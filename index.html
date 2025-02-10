@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Выбор ценностей</title>
+  <style>
+    /* Сброс стилей */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f8;
+      color: #333;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    header {
+      margin-bottom: 20px;
+    }
+    .steps-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .steps-nav button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .steps-nav button:hover {
+      background-color: #0056b3;
+    }
+    .steps-nav button.active {
+      background-color: #0056b3;
+      font-weight: bold;
+    }
+    .reset-btn {
+      background-color: #dc3545;
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .step-section {
+      display: none;
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .step-section.active {
+      display: block;
+    }
+    h1, h2, h3, h4 {
+      margin-bottom: 10px;
+    }
+    p {
+      margin-bottom: 10px;
+    }
+    /* Контейнер колонок */
+    .column-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .column {
+      background: #fafafa;
+      padding: 15px;
+      border-radius: 4px;
+      flex: 1;
+      min-width: 280px;
+      border: 1px solid #ddd;
+    }
+    .column h2 {
+      font-size: 1.1em;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .group-block {
+      margin-bottom: 15px;
+      padding-left: 10px;
+      border-left: 3px solid #007bff;
+      margin-top: 10px;
+    }
+    .group-block h3 {
+      font-size: 1em;
+      color: #007bff;
+      margin-bottom: 5px;
+    }
+    .value-item, .second-value-item, .third-value-item {
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+    }
+    .value-item label,
+    .second-value-item label {
+      margin-left: 5px;
+      cursor: pointer;
+    }
+    .counter {
+      margin-top: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+    /* Кнопка "Далее" в третьей колонке */
+    .next-btn {
+      display: block;
+      margin: 10px auto 0;
+      padding: 8px 16px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    /* Блок для финальных полей (Шаг 3) */
+    .final-inputs-block {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 15px;
+      background: #f9f9f9;
+    }
+    .final-inputs-block h4 {
+      margin-bottom: 8px;
+      color: #007bff;
+    }
+    .field-label {
+      display: block;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+    .final-inputs-block input[type="text"] {
+      width: 100%;
+      padding: 6px;
+      margin-top: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      font-family: monospace;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: vertical;
+    }
+    .copy-notice {
+      font-style: italic;
+      color: #555;
+      margin-bottom: 5px;
+    }
+    @media (max-width: 768px) {
+      .column-container {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="steps-nav">
+      <button id="step1Btn" onclick="showStep(1)">Шаг 1: Важные ценности</button>
+      <button id="step2Btn" onclick="showStep(2)">Шаг 2: Негативные ценности</button>
+      <button id="step3Btn" onclick="showStep(3)">Шаг 3: Итог</button>
+      <button class="reset-btn" onclick="resetAll()">Сброс</button>
+    </nav>
+  </header>
+  <main>
+    <!-- Шаг 1: Важные ценности -->
+    <section id="step1Section" class="step-section">
+      <h1>Шаг 1: Выберите ВАЖНЫЕ ценности</h1>
+      <p>Выберите не более 15 ценностей из списка, затем отметьте 5 наиболее значимых.</p>
+      <div class="column-container">
+        <!-- Первая колонка: Все ценности -->
+        <div class="column">
+          <h2>Все ценности</h2>
+          <div id="firstColumn_1"></div>
+          <div class="counter">Всего: <span id="firstCount_1"></span></div>
+        </div>
+        <!-- Вторая колонка: Выбранные (макс 15) -->
+        <div class="column">
+          <h2>Выбранные (макс 15)</h2>
+          <div id="secondColumn_1"></div>
+          <div class="counter">Выбрано: <span id="secondCount_1">0</span>/15</div>
+        </div>
+        <!-- Третья колонка: Финальные 5 -->
+        <div class="column">
+          <h2>Финальные 5</h2>
+          <div id="thirdColumn_1"></div>
+          <div class="counter">Выбрано: <span id="thirdCount_1">0</span>/5</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Шаг 2: Негативные ценности -->
+    <section id="step2Section" class="step-section">
+      <h1>Шаг 2: Выберите НЕГАТИВНЫЕ ценности</h1>
+      <p>Выберите не более 15 ценностей из списка, затем отметьте 5 наименее желательных.<br>
+         (Обратите внимание: ценности, выбранные на Шаге 1, недоступны)</p>
+      <div class="column-container">
+        <!-- Первая колонка: Все ценности -->
+        <div class="column">
+          <h2>Все ценности</h2>
+          <div id="firstColumn_2"></div>
+          <div class="counter">Всего: <span id="firstCount_2"></span></div>
+        </div>
+        <!-- Вторая колонка: Выбранные (макс 15) -->
+        <div class="column">
+          <h2>Выбранные (макс 15)</h2>
+          <div id="secondColumn_2"></div>
+          <div class="counter">Выбрано: <span id="secondCount_2">0</span>/15</div>
+        </div>
+        <!-- Третья колонка: Финальные 5 -->
+        <div class="column">
+          <h2>Финальные 5</h2>
+          <div id="thirdColumn_2"></div>
+          <div class="counter">Выбрано: <span id="thirdCount_2">0</span>/5</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Шаг 3: Итог -->
+    <section id="step3Section" class="step-section">
+      <h1>Шаг 3: Итог</h1>
+      <p>Для каждой выбранной ценности заполните поля: «Почему важно», «Интерпретация» и «Пример из жизни».<br>
+         Ниже находится итоговый Markdown. Нажмите на поле, чтобы скопировать текст в буфер обмена.
+      </p>
+      <h2>Важные ценности (финальные 5)</h2>
+      <div id="importantValuesContainer"></div>
+      <h2>Негативные ценности (финальные 5)</h2>
+      <div id="negativeValuesContainer"></div>
+      <h2>Итоговый Markdown</h2>
+      <p class="copy-notice">Нажмите на поле для копирования содержимого</p>
+      <textarea id="finalMarkdown" rows="40" readonly></textarea>
+    </section>
+  </main>
+
+  <script>
+    /***************** ДАННЫЕ И ПЕРЕМЕННЫЕ *****************/
+    const group1 = [
+      "Воображение","Интуиция","Креативность","Любопытство","Оригинальность",
+      "Свобода","Спонтанность","Творческое начало","Уникальность","Юмор",
+      "Доброта","Отзывчивость","Сопереживание","Сострадание","Щедрость",
+      "Эмоциональность","Этичность","Комфорт","Удовлетворение","Счастье",
+      "Анализ","Знания","Мудрость","Поиск истины","Удобства","Уют",
+      "Благоустроенность","Сострадание"
+    ];
+    const group2 = [
+      "Азарт","Достижения","Значительность","Конкуренция","Лидерство",
+      "Революция","Риск","Соперничество","Храбрость","Энтузиазм",
+      "Альтруизм","Духовность","Романтика","Социальная активность",
+      "Чувство собственного достоинства","Эмоциональность","Иерархия",
+      "Правосудие","Справедливость","Способность брать на себя ответственность",
+      "Дисциплина","История","Структура","Упорство"
+    ];
+    const group3 = [
+      "Достижения","Зрелость","Индивидуальность","Личностный рост","Находчивость",
+      "Практичность","Производительность","Уверенность","Эффективность","Достоинство",
+      "Лояльность","Надёжность","Откровенность","Правда","Честность",
+      "Прочность","Стабильность","Стойкость","Аккуратность","Добросовестность",
+      "Консерватизм","Предусмотрительность"
+    ];
+    const group4 = [
+      "Удобства","Уют","Благоустроенность","Гармония","Дружба",
+      "Красота","Простота","Скромность","Тишина","Вера",
+      "Доброта","Мастерство","Отзывчивость","Сострадание","Терпение",
+      "Безопасность","Здоровье","Комфорт","Равенство","Семья",
+      "Выносливость","Ловкость","Развитие","Учеба","Энергичность"
+    ];
+    let allValues = [];
+    let uniqueId = 0;
+    const createValueObjects = (values, groupName) =>
+      values.map(val => ({ id: uniqueId++, label: val, group: groupName }));
+    allValues = allValues.concat(createValueObjects(group1, "Группа 1"));
+    allValues = allValues.concat(createValueObjects(group2, "Группа 2"));
+    allValues = allValues.concat(createValueObjects(group3, "Группа 3"));
+    allValues = allValues.concat(createValueObjects(group4, "Группа 4"));
+
+    // Выбранные значения по шагам:
+    let secondColumn_1 = []; // Шаг 1: выбранные (до 15)
+    let thirdColumn_1  = []; // Шаг 1: финальные 5
+    let secondColumn_2 = []; // Шаг 2: выбранные (до 15)
+    let thirdColumn_2  = []; // Шаг 2: финальные 5
+
+    // Данные для Шага 3 (ключи вида "important_ID" и "negative_ID")
+    let step3Data = {};
+
+    /***************** ЛОКАЛЬНОЕ ХРАНИЛИЩЕ И ТЕКУЩИЙ ТАБ *****************/
+    const loadFromLocalStorage = () => {
+      try {
+        const sc1 = JSON.parse(localStorage.getItem("secondColumn_1"));
+        const tc1 = JSON.parse(localStorage.getItem("thirdColumn_1"));
+        const sc2 = JSON.parse(localStorage.getItem("secondColumn_2"));
+        const tc2 = JSON.parse(localStorage.getItem("thirdColumn_2"));
+        const s3 = JSON.parse(localStorage.getItem("step3Data"));
+        const currentStepLS = localStorage.getItem("currentStep");
+        if (Array.isArray(sc1)) secondColumn_1 = sc1;
+        if (Array.isArray(tc1)) thirdColumn_1 = tc1;
+        if (Array.isArray(sc2)) secondColumn_2 = sc2;
+        if (Array.isArray(tc2)) thirdColumn_2 = tc2;
+        if (s3 && typeof s3 === 'object') step3Data = s3;
+        return currentStepLS ? parseInt(currentStepLS) : 1;
+      } catch(e) {
+        console.warn("Ошибка чтения localStorage:", e);
+        return 1;
+      }
+    };
+
+    const saveToLocalStorage = () => {
+      localStorage.setItem("secondColumn_1", JSON.stringify(secondColumn_1));
+      localStorage.setItem("thirdColumn_1", JSON.stringify(thirdColumn_1));
+      localStorage.setItem("secondColumn_2", JSON.stringify(secondColumn_2));
+      localStorage.setItem("thirdColumn_2", JSON.stringify(thirdColumn_2));
+      localStorage.setItem("step3Data", JSON.stringify(step3Data));
+    };
+
+    // Сохранение текущего шага
+    const saveCurrentStep = (step) => {
+      localStorage.setItem("currentStep", step);
+    };
+
+    const resetAll = () => {
+      if (confirm("Точно сбросить все данные?")) {
+        localStorage.clear();
+        location.reload();
+      }
+    };
+
+    /***************** ФУНКЦИИ ГЕНЕРАЦИИ КОЛОНОК *****************/
+    const generateColumns = (stepIndex) => {
+      const firstColumnDiv  = document.getElementById(`firstColumn_${stepIndex}`);
+      const secondColumnDiv = document.getElementById(`secondColumn_${stepIndex}`);
+      const thirdColumnDiv  = document.getElementById(`thirdColumn_${stepIndex}`);
+      const firstCountSpan  = document.getElementById(`firstCount_${stepIndex}`);
+      const secondCountSpan = document.getElementById(`secondCount_${stepIndex}`);
+      const thirdCountSpan  = document.getElementById(`thirdCount_${stepIndex}`);
+      
+      // Определяем выбор для текущего шага и выбор из другого шага (чтобы не пересекались)
+      const currentSelection = stepIndex === 1 ? secondColumn_1 : secondColumn_2;
+      const otherSelection   = stepIndex === 1 ? secondColumn_2 : secondColumn_1;
+
+      // Отрисовка первой колонки
+      const groupedData = {};
+      allValues.forEach(item => {
+        // Если значение выбрано в другом шаге (и не выбрано здесь) – не показываем его.
+        const inOther = otherSelection.some(el => el.id === item.id);
+        const inCurrent = currentSelection.some(el => el.id === item.id);
+        if (!inCurrent && inOther) return;
+        if (!groupedData[item.group]) groupedData[item.group] = [];
+        groupedData[item.group].push(item);
+      });
+      firstColumnDiv.innerHTML = "";
+      for (let groupName in groupedData) {
+        const groupBlock = document.createElement("div");
+        groupBlock.className = "group-block";
+        const groupTitle = document.createElement("h3");
+        groupTitle.textContent = groupName;
+        groupBlock.appendChild(groupTitle);
+        groupedData[groupName].forEach(item => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "value-item";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.id = `first_${stepIndex}_${item.id}`;
+          checkbox.value = item.label;
+          // Если уже выбрано – отмечаем
+          if (currentSelection.some(el => el.id === item.id)) {
+            checkbox.checked = true;
+          }
+          checkbox.addEventListener("change", (e) => {
+            let secondArr = stepIndex === 1 ? secondColumn_1 : secondColumn_2;
+            let thirdArr  = stepIndex === 1 ? thirdColumn_1  : thirdColumn_2;
+            if (e.target.checked) {
+              // Если лимит 15 уже достигнут, не разрешаем новое выделение
+              if (secondArr.length >= 15) {
+                e.target.checked = false;
+              } else {
+                // Добавляем значение
+                if (!secondArr.some(el => el.id === item.id)) {
+                  secondArr.push(item);
+                }
+              }
+            } else {
+              secondArr = secondArr.filter(el => el.id !== item.id);
+              thirdArr = thirdArr.filter(el => el.id !== item.id);
+            }
+            if (stepIndex === 1) {
+              secondColumn_1 = secondArr;
+              thirdColumn_1  = thirdArr;
+            } else {
+              secondColumn_2 = secondArr;
+              thirdColumn_2  = thirdArr;
+            }
+            updateFirstColumnState(stepIndex);
+            updateSecondColumn(stepIndex);
+            updateThirdColumn(stepIndex);
+            saveToLocalStorage();
+          });
+          const label = document.createElement("label");
+          label.setAttribute("for", checkbox.id);
+          label.textContent = item.label;
+          wrapper.appendChild(checkbox);
+          wrapper.appendChild(label);
+          groupBlock.appendChild(wrapper);
+        });
+        firstColumnDiv.appendChild(groupBlock);
+      }
+      firstCountSpan.textContent = allValues.length;
+      updateFirstColumnState(stepIndex);
+
+      // Функция обновления состояния checkbox в первой колонке
+      function updateFirstColumnState(stepIdx) {
+        const firstCol = document.getElementById(`firstColumn_${stepIdx}`);
+        const checkboxes = firstCol.querySelectorAll('input[type="checkbox"]');
+        const currentSel = stepIdx === 1 ? secondColumn_1 : secondColumn_2;
+        checkboxes.forEach(cb => {
+          if (!cb.checked) {
+            if (currentSel.length >= 15) {
+              cb.disabled = true;
+              cb.title = "Достигнут лимит выбранных значений (15)";
+            } else {
+              cb.disabled = false;
+              cb.title = "";
+            }
+          }
+        });
+      }
+
+      // Отрисовка второй колонки (для финального выбора)
+      function updateSecondColumn(stepIdx) {
+        const secDiv = document.getElementById(`secondColumn_${stepIdx}`);
+        secDiv.innerHTML = "";
+        const secondArr = stepIdx === 1 ? secondColumn_1 : secondColumn_2;
+        const thirdArr  = stepIdx === 1 ? thirdColumn_1  : thirdColumn_2;
+        const canChooseFinal = (secondArr.length === 15);
+        const finalLimitReached = (thirdArr.length === 5);
+        secondArr.forEach(item => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "second-value-item";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.id = `second_${stepIdx}_${item.id}`;
+          checkbox.value = item.label;
+          // Отмечаем, если уже выбрано как финальное
+          checkbox.checked = thirdArr.some(el => el.id === item.id);
+          // Блокируем, если не выполнено условие выбора финальных (15 значений) 
+          // или если лимит финальных (5) уже достигнут
+          if (!canChooseFinal) {
+            checkbox.disabled = true;
+            checkbox.title = "Сначала выберите 15 ценностей";
+          } else if (finalLimitReached && !checkbox.checked) {
+            checkbox.disabled = true;
+            checkbox.title = "Достигнут лимит финальных ценностей (5)";
+          } else {
+            checkbox.disabled = false;
+            checkbox.title = "";
+          }
+          checkbox.addEventListener("change", (e) => {
+            let thirdArrLocal = stepIdx === 1 ? thirdColumn_1 : thirdColumn_2;
+            if (e.target.checked) {
+              if (!finalLimitReached) {
+                if (!thirdArrLocal.some(el => el.id === item.id)) {
+                  thirdArrLocal.push(item);
+                }
+              }
+            } else {
+              thirdArrLocal = thirdArrLocal.filter(el => el.id !== item.id);
+            }
+            if (stepIdx === 1) {
+              thirdColumn_1 = thirdArrLocal;
+            } else {
+              thirdColumn_2 = thirdArrLocal;
+            }
+            updateThirdColumn(stepIdx);
+            saveToLocalStorage();
+          });
+          const label = document.createElement("label");
+          label.setAttribute("for", checkbox.id);
+          label.textContent = item.label;
+          wrapper.appendChild(checkbox);
+          wrapper.appendChild(label);
+          secDiv.appendChild(wrapper);
+        });
+        secondCountSpan.textContent = secondArr.length;
+      }
+
+      // Отрисовка третьей колонки (финальные 5) и добавление кнопки "Далее"
+      function updateThirdColumn(stepIdx) {
+        const thiDiv = document.getElementById(`thirdColumn_${stepIdx}`);
+        thiDiv.innerHTML = "";
+        const thirdArr = stepIdx === 1 ? thirdColumn_1 : thirdColumn_2;
+        thirdArr.forEach(item => {
+          const divItem = document.createElement("div");
+          divItem.className = "third-value-item";
+          divItem.textContent = item.label;
+          thiDiv.appendChild(divItem);
+        });
+        thirdCountSpan.textContent = thirdArr.length;
+        // Если финальный лимит достигнут (5 значений) для шагов 1 или 2, показываем кнопку "Далее"
+        if ((stepIdx === 1 || stepIdx === 2) && thirdArr.length === 5) {
+          // Если кнопка уже существует, не добавляем снова
+          if (!thiDiv.querySelector(".next-btn")) {
+            const nextBtn = document.createElement("button");
+            nextBtn.className = "next-btn";
+            nextBtn.textContent = "Далее";
+            nextBtn.addEventListener("click", () => {
+              if (stepIdx === 1) {
+                showStep(2);
+              } else if (stepIdx === 2) {
+                showStep(3);
+              }
+            });
+            thiDiv.appendChild(nextBtn);
+          }
+        }
+      }
+      updateSecondColumn(stepIndex);
+      updateThirdColumn(stepIndex);
+    };
+
+    /***************** ШАГ 3: Итоговый Рендер *****************/
+    const renderStep3 = () => {
+      const importantContainer = document.getElementById("importantValuesContainer");
+      const negativeContainer  = document.getElementById("negativeValuesContainer");
+      importantContainer.innerHTML = "";
+      negativeContainer.innerHTML = "";
+      const createFinalBlock = (item, category) => {
+        const key = `${category}_${item.id}`;
+        const dataObj = step3Data[key] || { why: "", interpret: "", example: "" };
+        const wrapper = document.createElement("div");
+        wrapper.className = "final-inputs-block";
+        const title = document.createElement("h4");
+        title.textContent = item.label;
+        wrapper.appendChild(title);
+        // Поле: Почему важно
+        const labelWhy = document.createElement("span");
+        labelWhy.className = "field-label";
+        labelWhy.textContent = "Почему важно:";
+        wrapper.appendChild(labelWhy);
+        const inputWhy = document.createElement("input");
+        inputWhy.type = "text";
+        inputWhy.value = dataObj.why;
+        inputWhy.addEventListener("input", () => {
+          dataObj.why = inputWhy.value;
+          step3Data[key] = dataObj;
+          saveToLocalStorage();
+          updateFinalMarkdown();
+        });
+        wrapper.appendChild(inputWhy);
+        // Поле: Интерпретация
+        const labelInterpret = document.createElement("span");
+        labelInterpret.className = "field-label";
+        labelInterpret.textContent = "Интерпретация:";
+        wrapper.appendChild(labelInterpret);
+        const inputInterpret = document.createElement("input");
+        inputInterpret.type = "text";
+        inputInterpret.value = dataObj.interpret;
+        inputInterpret.addEventListener("input", () => {
+          dataObj.interpret = inputInterpret.value;
+          step3Data[key] = dataObj;
+          saveToLocalStorage();
+          updateFinalMarkdown();
+        });
+        wrapper.appendChild(inputInterpret);
+        // Поле: Пример из жизни
+        const labelExample = document.createElement("span");
+        labelExample.className = "field-label";
+        labelExample.textContent = "Пример из жизни:";
+        wrapper.appendChild(labelExample);
+        const inputExample = document.createElement("input");
+        inputExample.type = "text";
+        inputExample.value = dataObj.example;
+        inputExample.addEventListener("input", () => {
+          dataObj.example = inputExample.value;
+          step3Data[key] = dataObj;
+          saveToLocalStorage();
+          updateFinalMarkdown();
+        });
+        wrapper.appendChild(inputExample);
+        return wrapper;
+      };
+
+      thirdColumn_1.forEach(item => {
+        const block = createFinalBlock(item, "important");
+        importantContainer.appendChild(block);
+      });
+      thirdColumn_2.forEach(item => {
+        const block = createFinalBlock(item, "negative");
+        negativeContainer.appendChild(block);
+      });
+      updateFinalMarkdown();
+    };
+
+    const updateFinalMarkdown = () => {
+      const finalMarkdown = document.getElementById("finalMarkdown");
+      finalMarkdown.value = buildMarkdownText();
+    };
+
+    const buildMarkdownText = () => {
+      let md = "# Итоговый список ценностей\n\n";
+      md += "## Важные ценности\n\n";
+      thirdColumn_1.forEach(item => {
+        const key = `important_${item.id}`;
+        const dataObj = step3Data[key] || {};
+        md += `### ${item.label}\n`;
+        md += `- **Почему важно:** ${dataObj.why || ""}\n`;
+        md += `- **Интерпретация:** ${dataObj.interpret || ""}\n`;
+        md += `- **Пример из жизни:** ${dataObj.example || ""}\n\n`;
+      });
+      md += "## Негативные ценности\n\n";
+      thirdColumn_2.forEach(item => {
+        const key = `negative_${item.id}`;
+        const dataObj = step3Data[key] || {};
+        md += `### ${item.label}\n`;
+        md += `- **Почему важно:** ${dataObj.why || ""}\n`;
+        md += `- **Интерпретация:** ${dataObj.interpret || ""}\n`;
+        md += `- **Пример из жизни:** ${dataObj.example || ""}\n\n`;
+      });
+      return md;
+    };
+
+    const copyMarkdownToClipboard = () => {
+      const finalMarkdown = document.getElementById("finalMarkdown");
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(finalMarkdown.value)
+          .then(() => alert("Содержимое скопировано в буфер обмена!"))
+          .catch(err => alert("Ошибка копирования: " + err));
+      } else {
+        finalMarkdown.select();
+        try {
+          document.execCommand("copy");
+          alert("Содержимое скопировано в буфер обмена!");
+        } catch (err) {
+          alert("Ошибка копирования: " + err);
+        }
+      }
+    };
+
+    /***************** ПЕРЕКЛЮЧЕНИЕ ШАГОВ *****************/
+    const showStep = (stepNumber) => {
+      for (let i = 1; i <= 3; i++) {
+        document.getElementById(`step${i}Section`).classList.remove("active");
+        document.getElementById(`step${i}Btn`).classList.remove("active");
+      }
+      document.getElementById(`step${stepNumber}Section`).classList.add("active");
+      document.getElementById(`step${stepNumber}Btn`).classList.add("active");
+      saveCurrentStep(stepNumber);
+      if (stepNumber === 3) {
+        renderStep3();
+      }
+    };
+
+    /***************** ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ *****************/
+    window.addEventListener("load", () => {
+      const currentStep = loadFromLocalStorage();
+      generateColumns(1);
+      generateColumns(2);
+      document.getElementById("finalMarkdown").addEventListener("click", copyMarkdownToClipboard);
+      showStep(currentStep);
+    });
+  </script>
+</body>
+</html>
+
