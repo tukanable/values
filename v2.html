@@ -292,6 +292,9 @@
           if(state.positive.selected15.includes(val)) {
             checkbox.checked = true;
           }
+          if(state.negative.selected15.includes(val)) {
+            checkbox.disabled = true; // Блокируем уже выбранные негативные
+          }
           if(state.positive.selected15.length >= 15 && !state.positive.selected15.includes(val)) {
             checkbox.disabled = true;
           }
@@ -519,7 +522,6 @@
         title.className = "font-bold mb-2";
         col.appendChild(title);
         group.values.forEach(val => {
-          if(state.positive.selected15.includes(val)) return;
           if(rendered.has(val)) return;
           rendered.add(val);
           const label = document.createElement("label");
@@ -530,6 +532,9 @@
           checkbox.value = val;
           if(state.negative.selected15.includes(val)) {
             checkbox.checked = true;
+          }
+          if(state.positive.selected15.includes(val)) {
+            checkbox.disabled = true; // Блокируем уже выбранные положительные
           }
           if(state.negative.selected15.length >= 15 && !state.negative.selected15.includes(val)) {
             checkbox.disabled = true;
