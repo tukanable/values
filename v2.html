@@ -411,6 +411,12 @@
         label.appendChild(span);
         checkboxCard.appendChild(label);
       });
+      if (state.positive.selected15.length === 0) {
+        const warning = document.createElement("div");
+        warning.textContent = "Сначала выберите 5 ценностей для детализации на прошлом табе.";
+        checkboxCard.appendChild(warning);
+      }
+
       leftCol.appendChild(checkboxCard);
       flex.appendChild(leftCol);
 
@@ -471,6 +477,14 @@
         card.appendChild(textareaExample);
         valueCards.appendChild(card);
       });
+
+      if (state.positive.selected5.length === 0) {
+        const warning = document.createElement("div");
+        warning.className = "card p-4 shadow bg-base-100";
+        warning.textContent = "Ни одна ценность еще не выбрана.";
+        valueCards.appendChild(warning);
+      }
+
       rightCol.appendChild(valueCards);
       flex.appendChild(rightCol);
       wrapper.appendChild(flex);
@@ -646,6 +660,13 @@
         label.appendChild(span);
         checkboxCard.appendChild(label);
       });
+
+      if (state.negative.selected15.length === 0) {
+        const warning = document.createElement("div");
+        warning.textContent = "Сначала выберите 5 ценностей для детализации на прошлом табе.";
+        checkboxCard.appendChild(warning);
+      }
+
       leftCol.appendChild(checkboxCard);
       flex.appendChild(leftCol);
 
@@ -701,6 +722,14 @@
         card.appendChild(textareaExample);
         valueCards.appendChild(card);
       });
+
+      if (state.negative.selected5.length === 0) {
+        const warning = document.createElement("div");
+        warning.className = "card p-4 shadow bg-base-100";
+        warning.textContent = "Ни одна ценность еще не выбрана.";
+        valueCards.appendChild(warning);
+      }
+
       rightCol.appendChild(valueCards);
       flex.appendChild(rightCol);
       wrapper.appendChild(flex);
