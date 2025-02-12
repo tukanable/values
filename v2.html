@@ -115,8 +115,12 @@
       } else if(options.tabType === "negativeDetails") {
         counter.textContent = `Заполнено: ${options.filledCount} из ${options.requiredCount}`;
       }
+      counter.className = "ml-4";
       nav.appendChild(btn);
       nav.appendChild(counter);
+      const last = document.createElement("div");
+      last.className = "flex-1";
+      nav.appendChild(last);
       return nav;
     }
 
