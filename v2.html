@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Выбор ценностей</title>
+  <!-- Подключаем Tailwind CSS и daisyUI через CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.5/dist/full.css" rel="stylesheet" />
+  <script>
+    // Настройка Tailwind с плагином daisyUI и темами light и dark
+    tailwind.config = {
+      plugins: [daisyui],
+      daisyui: {
+        themes: ["light", "dark"]
+      }
+    };
+  </script>
+</head>
+<body class="bg-base-200">
+  <div class="container mx-auto p-4">
+    <!-- Верхняя панель: табы, переключатель темы и кнопка сброса -->
+    <div class="flex flex-col sm:flex-row items-center justify-between mb-4">
+      <!-- Табы -->
+      <div role="tablist" class="tabs tabs-bordered">
+        <a role="tab" class="tab" data-tab="1">Отбор ценностей</a>
+        <a role="tab" class="tab" data-tab="2">Мои ценности</a>
+        <a role="tab" class="tab" data-tab="3">Отбор негативных ценностей</a>
+        <a role="tab" class="tab" data-tab="4">Мои негативные ценности</a>
+        <a role="tab" class="tab" data-tab="5">Итог</a>
+      </div>
+      <!-- Переключатель темы и кнопка сброса -->
+      <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+        <!-- Выпадающий список для выбора темы: системная (по умолчанию), светлая, тёмная -->
+        <select id="themeSelect" class="select select-bordered">
+          <option value="system">Системная</option>
+          <option value="light">Светлая</option>
+          <option value="dark">Тёмная</option>
+        </select>
+        <button id="resetBtn" class="btn btn-secondary">Сброс</button>
+      </div>
+    </div>
+    <!-- Контейнер для содержимого текущего таба -->
+    <div id="tabContent"></div>
+  </div>
+
+  <script>
+    /******************************************************************
+     * Глобальное состояние
+     * Всё состояние хранится в объекте state и сохраняется в localStorage 
+     * под ключом "v2". При каждом изменении вызывается saveState().
+     ******************************************************************/
+    let state = {
+      currentTab: 1,
+      positive: {
+        selected15: [],   // выбранные 15 положительных ценностей
+        selected5: [],    // из них — 5 для детализации
+        elaborations: {}  // { "ценность": { why, interpretation, example } }
+      },
+      negative: {
+        selected15: [],
+        selected5: [],
+        elaborations: {}
+      }
+    };
+
+    // Загружаем сохранённое состояние (если есть)
+    const saved = localStorage.getItem("v2");
+    if (saved) {
+      try { state = JSON.parse(saved); } catch(e) { console.error(e); }
+    }
+
+    // Сохраняем состояние в localStorage
+    function saveState() {
+      localStorage.setItem("v2", JSON.stringify(state));
+    }
+
+    /******************************************************************
+     * Функция createNavBar
+     * Создаёт навигационную панель с кнопкой «Далее» и счетчиком.
+     * Параметры options:
+     *  - currentCount: текущее число выбранных (или заполненных) значений
+     *  - requiredCount: требуемое число (15 для отбора, 5 для деталей)
+     *  - nextTab: номер следующего таба
+     *  - tabType: "positiveSelection", "negativeSelection", 
+     *             "positiveDetails" или "negativeDetails"
+     *  - filledCount (опционально): число полностью заполненных карточек (для деталей)
+     ******************************************************************/
+    function createNavBar(options) {
+      let nav = document.createElement("div");
+      nav.className = "flex items-center justify-between my-4";
+      let btn = document.createElement("button");
+      btn.textContent = "Далее";
+      btn.className = "btn btn-primary";
+      // Для отборов: кнопка активна только когда currentCount === requiredCount.
+      // Для деталей: кнопка активна, если filledCount === requiredCount.
+      if(options.tabType === "positiveSelection" || options.tabType === "negativeSelection") {
+        btn.disabled = (options.currentCount < options.requiredCount);
+      } else if(options.tabType === "positiveDetails" || options.tabType === "negativeDetails") {
+        btn.disabled = (options.filledCount < options.requiredCount);
+      }
+      btn.addEventListener("click", function() {
+        state.currentTab = options.nextTab;
+        saveState();
+        renderTab();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      let counter = document.createElement("span");
+      if(options.tabType === "positiveSelection") {
+        counter.textContent = `Выбрано: ${state.positive.selected15.length} из ${options.requiredCount}`;
+      } else if(options.tabType === "negativeSelection") {
+        counter.textContent = `Выбрано: ${state.negative.selected15.length} из ${options.requiredCount}`;
+      } else if(options.tabType === "positiveDetails") {
+        counter.textContent = `Заполнено: ${options.filledCount} из ${options.requiredCount}`;
+      } else if(options.tabType === "negativeDetails") {
+        counter.textContent = `Заполнено: ${options.filledCount} из ${options.requiredCount}`;
+      }
+      nav.appendChild(btn);
+      nav.appendChild(counter);
+      return nav;
+    }
+
+    /******************************************************************
+     * Функция обновления навигационной панели для деталей положительных
+     * (обновляет состояние кнопок (disabled) и счетчика).
+     ******************************************************************/
+    function updatePositiveDetailsNavBar() {
+      const navTop = document.getElementById("posNavTop");
+      const navBottom = document.getElementById("posNavBottom");
+      let filledCount = state.positive.selected5.filter(val => {
+        let exp = state.positive.elaborations[val];
+        return exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim();
+      }).length;
+      let disabled = (state.positive.selected5.length < 5 || filledCount < 5);
+      if(navTop.firstChild && navTop.firstChild.tagName === "BUTTON") {
+         navTop.firstChild.disabled = disabled;
+      }
+      if(navTop.lastChild && navTop.lastChild.tagName === "SPAN") {
+         navTop.lastChild.textContent = `Заполнено: ${filledCount} из 5`;
+      }
+      if(navBottom.firstChild && navBottom.firstChild.tagName === "BUTTON") {
+         navBottom.firstChild.disabled = disabled;
+      }
+      if(navBottom.lastChild && navBottom.lastChild.tagName === "SPAN") {
+         navBottom.lastChild.textContent = `Заполнено: ${filledCount} из 5`;
+      }
+    }
+
+    /******************************************************************
+     * Функция обновления навигационной панели для деталей негативных
+     ******************************************************************/
+    function updateNegativeDetailsNavBar() {
+      const navTop = document.getElementById("negNavTop");
+      const navBottom = document.getElementById("negNavBottom");
+      let filledCount = state.negative.selected5.filter(val => {
+        let exp = state.negative.elaborations[val];
+        return exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim();
+      }).length;
+      let disabled = (state.negative.selected5.length < 5 || filledCount < 5);
+      if(navTop.firstChild && navTop.firstChild.tagName === "BUTTON") {
+         navTop.firstChild.disabled = disabled;
+      }
+      if(navTop.lastChild && navTop.lastChild.tagName === "SPAN") {
+         navTop.lastChild.textContent = `Заполнено: ${filledCount} из 5`;
+      }
+      if(navBottom.firstChild && navBottom.firstChild.tagName === "BUTTON") {
+         navBottom.firstChild.disabled = disabled;
+      }
+      if(navBottom.lastChild && navBottom.lastChild.tagName === "SPAN") {
+         navBottom.lastChild.textContent = `Заполнено: ${filledCount} из 5`;
+      }
+    }
+
+    /******************************************************************
+     * Списки ценностей в 4 группах (дубликаты игнорируются)
+     ******************************************************************/
+    const groups = [
+      { name: "Группа 1", values: [
+          "Воображение", "Интуиция", "Креативность", "Любопытство", "Оригинальность", "Свобода", 
+          "Спонтанность", "Творческое начало", "Уникальность", "Юмор", "Доброта", "Отзывчивость", 
+          "Сопереживание", "Сострадание", "Щедрость", "Эмоциональность", "Этичность", "Комфорт", 
+          "Удовлетворение", "Счастье", "Анализ", "Знания", "Мудрость", "Поиск истины", "Удобства", 
+          "Уют", "Благоустроенность", "Сострадание"
+        ] 
+      },
+      { name: "Группа 2", values: [
+          "Азарт", "Достижения", "Значительность", "Конкуренция", "Лидерство", "Революция", 
+          "Риск", "Соперничество", "Храбрость", "Энтузиазм", "Альтруизм", "Духовность", "Романтика", 
+          "Социальная активность", "Чувство собственного достоинства", "Эмоциональность", "Иерархия", 
+          "Правосудие", "Справедливость", "Способность брать на себя ответственность", "Дисциплина", 
+          "История", "Структура", "Упорство"
+        ]
+      },
+      { name: "Группа 3", values: [
+          "Достижения", "Зрелость", "Индивидуальность", "Личностный рост", "Находчивость", 
+          "Практичность", "Производительность", "Уверенность", "Эффективность", "Достоинство", 
+          "Лояльность", "Надёжность", "Откровенность", "Правда", "Честность", "Прочность", 
+          "Стабильность", "Стойкость", "Аккуратность", "Добросовестность", "Консерватизм", 
+          "Предусмотрительность"
+        ]
+      },
+      { name: "Группа 4", values: [
+          "Удобства", "Уют", "Благоустроенность", "Гармония", "Дружба", "Красота", "Простота", 
+          "Скромность", "Тишина", "Вера", "Доброта", "Мастерство", "Отзывчивость", "Сострадание", 
+          "Терпение", "Безопасность", "Здоровье", "Комфорт", "Равенство", "Семья", "Выносливость", 
+          "Ловкость", "Развитие", "Учеба", "Энергичность"
+        ]
+      }
+    ];
+
+    /******************************************************************
+     * Функция renderTab – отображает содержимое в зависимости от выбранного таба.
+     ******************************************************************/
+    function renderTab() {
+      const tabContent = document.getElementById("tabContent");
+      tabContent.innerHTML = "";
+      switch(state.currentTab) {
+        case 1:
+          renderPositiveSelection(tabContent);
+          break;
+        case 2:
+          renderPositiveDetails(tabContent);
+          break;
+        case 3:
+          renderNegativeSelection(tabContent);
+          break;
+        case 4:
+          renderNegativeDetails(tabContent);
+          break;
+        case 5:
+          renderFinalMarkdown(tabContent);
+          break;
+        default:
+          tabContent.textContent = "Неизвестная вкладка";
+      }
+      // Обновляем активный класс у табов
+      document.querySelectorAll('[role="tab"]').forEach(tab => {
+        const tabNum = parseInt(tab.getAttribute("data-tab"));
+        if(tabNum === state.currentTab) {
+          tab.classList.add("tab-active");
+        } else {
+          tab.classList.remove("tab-active");
+        }
+      });
+    }
+
+    /******************************************************************
+     * Таб 1: Отбор 15 положительных ценностей.
+     * Структура:
+     *  - Текст с инструкцией
+     *  - Навигационная панель (сверху): кнопка "Далее" (неактивна, если выбрано <15)
+     *    и счетчик "Выбрано: X из 15"
+     *  - 4 колонки (card) с чекбоксами
+     *  - Навигационная панель (снизу)
+     ******************************************************************/
+    function renderPositiveSelection(container) {
+      const wrapper = document.createElement("div");
+      const info = document.createElement("p");
+      info.textContent = "Выберите 15 положительных ценностей из списка ниже. Счётчик показывает, сколько выбрано. После выбора 15 нажмите «Далее».";
+      info.className = "mb-4";
+      wrapper.appendChild(info);
+
+      // Навигация сверху
+      const navTop = createNavBar({
+        currentCount: state.positive.selected15.length,
+        requiredCount: 15,
+        nextTab: 2,
+        tabType: "positiveSelection"
+      });
+      wrapper.appendChild(navTop);
+
+      // 4 колонки с ценностями
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4";
+      const rendered = new Set();
+      groups.forEach(group => {
+        const col = document.createElement("div");
+        col.className = "card p-4 shadow bg-base-100";
+        const title = document.createElement("h3");
+        title.textContent = group.name;
+        title.className = "font-bold mb-2";
+        col.appendChild(title);
+        group.values.forEach(val => {
+          if(rendered.has(val)) return;
+          rendered.add(val);
+          const label = document.createElement("label");
+          label.className = "cursor-pointer flex items-center mb-1";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "checkbox mr-2";
+          checkbox.value = val;
+          if(state.positive.selected15.includes(val)) {
+            checkbox.checked = true;
+          }
+          if(state.positive.selected15.length >= 15 && !state.positive.selected15.includes(val)) {
+            checkbox.disabled = true;
+          }
+          checkbox.addEventListener("change", function(e) {
+            if(e.target.checked) {
+              if(!state.positive.selected15.includes(val) && state.positive.selected15.length < 15) {
+                state.positive.selected15.push(val);
+              }
+            } else {
+              state.positive.selected15 = state.positive.selected15.filter(item => item !== val);
+              state.positive.selected5 = state.positive.selected5.filter(item => item !== val);
+              delete state.positive.elaborations[val];
+            }
+            saveState();
+            renderTab();
+          });
+          label.appendChild(checkbox);
+          const span = document.createElement("span");
+          span.textContent = val;
+          label.appendChild(span);
+          col.appendChild(label);
+        });
+        grid.appendChild(col);
+      });
+      wrapper.appendChild(grid);
+
+      // Навигация снизу
+      const navBottom = createNavBar({
+        currentCount: state.positive.selected15.length,
+        requiredCount: 15,
+        nextTab: 2,
+        tabType: "positiveSelection"
+      });
+      wrapper.appendChild(navBottom);
+
+      container.appendChild(wrapper);
+    }
+
+    /******************************************************************
+     * Таб 2: Мои ценности — детализация 5 выбранных из 15.
+     * Структура:
+     *  - Левая колонка:
+     *      Заголовок "Выберите 5 ценностей для описания:" и карточки (чекбоксы) для 15 значений.
+     *  - Правая колонка:
+     *      Заголовок "Заполните поля для выбранных ценностей:" и 5 карточек с 3 полями (textarea) каждая.
+     *  - Навигация (сверху и снизу): кнопка "Далее" (неактивна, если не выбраны 5 или не заполнены все поля)
+     ******************************************************************/
+    function renderPositiveDetails(container) {
+      const wrapper = document.createElement("div");
+      // Навигация сверху
+      // Вычисляем число полностью заполненных карточек:
+      let filledCount = state.positive.selected5.filter(val => {
+        let exp = state.positive.elaborations[val];
+        return exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim();
+      }).length;
+      const navTop = createNavBar({
+        currentCount: state.positive.selected5.length,
+        requiredCount: 5,
+        nextTab: 3,
+        tabType: "positiveDetails",
+        filledCount: filledCount
+      });
+      navTop.id = "posNavTop";
+
+      const info = document.createElement("p");
+      info.textContent = "Слева: выберите 5 ценностей для описания. Справа: заполните поля для выбранных ценностей.";
+      info.className = "mb-4";
+      wrapper.appendChild(info);
+      wrapper.appendChild(navTop);
+
+      // Флекс-контейнер с двумя колонками
+      const flex = document.createElement("div");
+      flex.className = "flex flex-col md:flex-row gap-4";
+
+      // Левая колонка: чекбоксы для выбора 5 из 15
+      const leftCol = document.createElement("div");
+      leftCol.className = "flex-1";
+      const leftTitle = document.createElement("h3");
+      leftTitle.textContent = "Выберите 5 ценностей для описания:";
+      leftTitle.className = "font-bold mb-2";
+      leftCol.appendChild(leftTitle);
+      const checkboxCard = document.createElement("div");
+      checkboxCard.className = "card p-4 shadow bg-base-100";
+      state.positive.selected15.forEach(val => {
+        const label = document.createElement("label");
+        label.className = "cursor-pointer flex items-center mb-1";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "checkbox mr-2";
+        checkbox.value = val;
+        if(state.positive.selected5.includes(val)) {
+          checkbox.checked = true;
+        }
+        if(state.positive.selected5.length >= 5 && !state.positive.selected5.includes(val)) {
+          checkbox.disabled = true;
+        }
+        checkbox.addEventListener("change", function(e) {
+          if(e.target.checked) {
+            if(state.positive.selected5.length < 5 && !state.positive.selected5.includes(val)) {
+              state.positive.selected5.push(val);
+              if(!state.positive.elaborations[val]) {
+                state.positive.elaborations[val] = { why: "", interpretation: "", example: "" };
+              }
+            }
+          } else {
+            state.positive.selected5 = state.positive.selected5.filter(item => item !== val);
+          }
+          saveState();
+          renderTab();
+        });
+        label.appendChild(checkbox);
+        const span = document.createElement("span");
+        span.textContent = val;
+        label.appendChild(span);
+        checkboxCard.appendChild(label);
+      });
+      leftCol.appendChild(checkboxCard);
+      flex.appendChild(leftCol);
+
+      // Правая колонка: карточки с 3 textarea для каждой выбранной ценности
+      const rightCol = document.createElement("div");
+      rightCol.className = "flex-1";
+      const rightTitle = document.createElement("h3");
+      rightTitle.textContent = "Заполните поля для выбранных ценностей:";
+      rightTitle.className = "font-bold mb-2";
+      rightCol.appendChild(rightTitle);
+      const valueCards = document.createElement("div");
+      state.positive.selected5.forEach(val => {
+        const card = document.createElement("div");
+        card.className = "card p-4 mb-4 shadow bg-base-100";
+        card.id = "pos-elab-" + val;
+        const header = document.createElement("h4");
+        header.textContent = val;
+        header.className = "font-semibold mb-1";
+        card.appendChild(header);
+        // Функция-обработчик ввода
+        function onInput(e, field) {
+          state.positive.elaborations[val][field] = e.target.value;
+          saveState();
+          updatePositiveDetailsNavBar();
+        }
+        // Поле "Почему важно"
+        const labelWhy = document.createElement("label");
+        labelWhy.textContent = "Почему важно:";
+        labelWhy.className = "block mb-1";
+        card.appendChild(labelWhy);
+        const textareaWhy = document.createElement("textarea");
+        textareaWhy.rows = 2;
+        textareaWhy.className = "textarea textarea-bordered w-full mb-2";
+        textareaWhy.value = (state.positive.elaborations[val] && state.positive.elaborations[val].why) || "";
+        textareaWhy.addEventListener("input", (e) => onInput(e, "why"));
+        card.appendChild(textareaWhy);
+        // Поле "Интерпретация"
+        const labelInterp = document.createElement("label");
+        labelInterp.textContent = "Интерпретация:";
+        labelInterp.className = "block mb-1";
+        card.appendChild(labelInterp);
+        const textareaInterp = document.createElement("textarea");
+        textareaInterp.rows = 2;
+        textareaInterp.className = "textarea textarea-bordered w-full mb-2";
+        textareaInterp.value = (state.positive.elaborations[val] && state.positive.elaborations[val].interpretation) || "";
+        textareaInterp.addEventListener("input", (e) => onInput(e, "interpretation"));
+        card.appendChild(textareaInterp);
+        // Поле "Пример из жизни"
+        const labelExample = document.createElement("label");
+        labelExample.textContent = "Пример из жизни:";
+        labelExample.className = "block mb-1";
+        card.appendChild(labelExample);
+        const textareaExample = document.createElement("textarea");
+        textareaExample.rows = 2;
+        textareaExample.className = "textarea textarea-bordered w-full";
+        textareaExample.value = (state.positive.elaborations[val] && state.positive.elaborations[val].example) || "";
+        textareaExample.addEventListener("input", (e) => onInput(e, "example"));
+        card.appendChild(textareaExample);
+        valueCards.appendChild(card);
+      });
+      rightCol.appendChild(valueCards);
+      flex.appendChild(rightCol);
+      wrapper.appendChild(flex);
+
+      // Навигация снизу
+      const navBottom = createNavBar({
+        currentCount: state.positive.selected5.length,
+        requiredCount: 5,
+        nextTab: 3,
+        tabType: "positiveDetails",
+        filledCount: state.positive.selected5.filter(val => {
+          let exp = state.positive.elaborations[val];
+          return exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim();
+        }).length
+      });
+      navBottom.id = "posNavBottom";
+      wrapper.appendChild(navBottom);
+
+      container.appendChild(wrapper);
+    }
+
+    /******************************************************************
+     * Таб 3: Отбор 15 негативных ценностей.
+     * Структура аналогична табу 1, но исключаются положительные.
+     ******************************************************************/
+    function renderNegativeSelection(container) {
+      const wrapper = document.createElement("div");
+      const info = document.createElement("p");
+      info.textContent = "Выберите 15 негативных ценностей из оставшихся. Ценности, выбранные как положительные, недоступны. После выбора 15 нажмите «Далее».";
+      info.className = "mb-4";
+      wrapper.appendChild(info);
+
+      const navTop = createNavBar({
+        currentCount: state.negative.selected15.length,
+        requiredCount: 15,
+        nextTab: 4,
+        tabType: "negativeSelection"
+      });
+      wrapper.appendChild(navTop);
+
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4";
+      const rendered = new Set();
+      groups.forEach(group => {
+        const col = document.createElement("div");
+        col.className = "card p-4 shadow bg-base-100";
+        const title = document.createElement("h3");
+        title.textContent = group.name;
+        title.className = "font-bold mb-2";
+        col.appendChild(title);
+        group.values.forEach(val => {
+          if(state.positive.selected15.includes(val)) return;
+          if(rendered.has(val)) return;
+          rendered.add(val);
+          const label = document.createElement("label");
+          label.className = "cursor-pointer flex items-center mb-1";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "checkbox mr-2";
+          checkbox.value = val;
+          if(state.negative.selected15.includes(val)) {
+            checkbox.checked = true;
+          }
+          if(state.negative.selected15.length >= 15 && !state.negative.selected15.includes(val)) {
+            checkbox.disabled = true;
+          }
+          checkbox.addEventListener("change", function(e) {
+            if(e.target.checked) {
+              if(!state.negative.selected15.includes(val) && state.negative.selected15.length < 15) {
+                state.negative.selected15.push(val);
+              }
+            } else {
+              state.negative.selected15 = state.negative.selected15.filter(item => item !== val);
+              state.negative.selected5 = state.negative.selected5.filter(item => item !== val);
+              delete state.negative.elaborations[val];
+            }
+            saveState();
+            renderTab();
+          });
+          label.appendChild(checkbox);
+          const span = document.createElement("span");
+          span.textContent = val;
+          label.appendChild(span);
+          col.appendChild(label);
+        });
+        grid.appendChild(col);
+      });
+      wrapper.appendChild(grid);
+
+      const navBottom = createNavBar({
+        currentCount: state.negative.selected15.length,
+        requiredCount: 15,
+        nextTab: 4,
+        tabType: "negativeSelection"
+      });
+      wrapper.appendChild(navBottom);
+
+      const counter = document.createElement("p");
+      counter.textContent = `Выбрано: ${state.negative.selected15.length} из 15`;
+      counter.className = "mt-4";
+      wrapper.appendChild(counter);
+
+      container.appendChild(wrapper);
+    }
+
+    /******************************************************************
+     * Таб 4: Мои негативные ценности — детализация 5 выбранных.
+     * Структура аналогична табу 2.
+     ******************************************************************/
+    function renderNegativeDetails(container) {
+      const wrapper = document.createElement("div");
+      const navTop = createNavBar({
+        currentCount: state.negative.selected5.length,
+        requiredCount: 5,
+        nextTab: 5,
+        tabType: "negativeDetails",
+        filledCount: state.negative.selected5.filter(val => {
+          let exp = state.negative.elaborations[val];
+          return exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim();
+        }).length
+      });
+      navTop.id = "negNavTop";
+
+      const info = document.createElement("p");
+      info.textContent = "Слева: выберите 5 негативных ценностей для описания. Справа: заполните поля для выбранных ценностей.";
+      info.className = "mb-4";
+      wrapper.appendChild(info);
+      wrapper.appendChild(navTop);
+
+      const flex = document.createElement("div");
+      flex.className = "flex flex-col md:flex-row gap-4";
+
+      const leftCol = document.createElement("div");
+      leftCol.className = "flex-1";
+      const leftTitle = document.createElement("h3");
+      leftTitle.textContent = "Выберите 5 негативных ценностей для описания:";
+      leftTitle.className = "font-bold mb-2";
+      leftCol.appendChild(leftTitle);
+      const checkboxCard = document.createElement("div");
+      checkboxCard.className = "card p-4 shadow bg-base-100";
+      state.negative.selected15.forEach(val => {
+        const label = document.createElement("label");
+        label.className = "cursor-pointer flex items-center mb-1";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "checkbox mr-2";
+        checkbox.value = val;
+        if(state.negative.selected5.includes(val)) {
+          checkbox.checked = true;
+        }
+        if(state.negative.selected5.length >= 5 && !state.negative.selected5.includes(val)) {
+          checkbox.disabled = true;
+        }
+        checkbox.addEventListener("change", function(e) {
+          if(e.target.checked) {
+            if(state.negative.selected5.length < 5 && !state.negative.selected5.includes(val)) {
+              state.negative.selected5.push(val);
+              if(!state.negative.elaborations[val]) {
+                state.negative.elaborations[val] = { why: "", interpretation: "", example: "" };
+              }
+            }
+          } else {
+            state.negative.selected5 = state.negative.selected5.filter(item => item !== val);
+          }
+          saveState();
+          renderTab();
+        });
+        label.appendChild(checkbox);
+        const span = document.createElement("span");
+        span.textContent = val;
+        label.appendChild(span);
+        checkboxCard.appendChild(label);
+      });
+      leftCol.appendChild(checkboxCard);
+      flex.appendChild(leftCol);
+
+      const rightCol = document.createElement("div");
+      rightCol.className = "flex-1";
+      const rightTitle = document.createElement("h3");
+      rightTitle.textContent = "Заполните поля для выбранных негативных ценностей:";
+      rightTitle.className = "font-bold mb-2";
+      rightCol.appendChild(rightTitle);
+      const valueCards = document.createElement("div");
+      state.negative.selected5.forEach(val => {
+        const card = document.createElement("div");
+        card.className = "card p-4 mb-4 shadow bg-base-100";
+        card.id = "neg-elab-" + val;
+        const header = document.createElement("h4");
+        header.textContent = val;
+        header.className = "font-semibold mb-1";
+        card.appendChild(header);
+        function onInput(e, field) {
+          state.negative.elaborations[val][field] = e.target.value;
+          saveState();
+          updateNegativeDetailsNavBar();
+        }
+        const labelWhy = document.createElement("label");
+        labelWhy.textContent = "Почему важно:";
+        labelWhy.className = "block mb-1";
+        card.appendChild(labelWhy);
+        const textareaWhy = document.createElement("textarea");
+        textareaWhy.rows = 2;
+        textareaWhy.className = "textarea textarea-bordered w-full mb-2";
+        textareaWhy.value = (state.negative.elaborations[val] && state.negative.elaborations[val].why) || "";
+        textareaWhy.addEventListener("input", (e) => onInput(e, "why"));
+        card.appendChild(textareaWhy);
+        const labelInterp = document.createElement("label");
+        labelInterp.textContent = "Интерпретация:";
+        labelInterp.className = "block mb-1";
+        card.appendChild(labelInterp);
+        const textareaInterp = document.createElement("textarea");
+        textareaInterp.rows = 2;
+        textareaInterp.className = "textarea textarea-bordered w-full mb-2";
+        textareaInterp.value = (state.negative.elaborations[val] && state.negative.elaborations[val].interpretation) || "";
+        textareaInterp.addEventListener("input", (e) => onInput(e, "interpretation"));
+        card.appendChild(textareaInterp);
+        const labelExample = document.createElement("label");
+        labelExample.textContent = "Пример из жизни:";
+        labelExample.className = "block mb-1";
+        card.appendChild(labelExample);
+        const textareaExample = document.createElement("textarea");
+        textareaExample.rows = 2;
+        textareaExample.className = "textarea textarea-bordered w-full";
+        textareaExample.value = (state.negative.elaborations[val] && state.negative.elaborations[val].example) || "";
+        textareaExample.addEventListener("input", (e) => onInput(e, "example"));
+        card.appendChild(textareaExample);
+        valueCards.appendChild(card);
+      });
+      rightCol.appendChild(valueCards);
+      flex.appendChild(rightCol);
+      wrapper.appendChild(flex);
+
+      const navBottom = createNavBar({
+        currentCount: state.negative.selected5.length,
+        requiredCount: 5,
+        nextTab: 5,
+        tabType: "negativeDetails",
+        filledCount: state.negative.selected5.filter(val => {
+          let exp = state.negative.elaborations[val];
+          return exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim();
+        }).length
+      });
+      navBottom.id = "negNavBottom";
+      wrapper.appendChild(navBottom);
+
+      container.appendChild(wrapper);
+    }
+
+    /******************************************************************
+     * Таб 5: Итоговый Markdown.
+     * Отображается read-only textarea с 20 строками.
+     ******************************************************************/
+    function renderFinalMarkdown(container) {
+      const wrapper = document.createElement("div");
+      const info = document.createElement("p");
+      info.textContent = "Ниже представлен итоговый список ценностей в формате Markdown. Нажмите на поле, чтобы скопировать содержимое.";
+      info.className = "mb-4";
+      wrapper.appendChild(info);
+      
+      const textarea = document.createElement("textarea");
+      textarea.rows = 20; // теперь 20 строк
+      textarea.readOnly = true;
+      textarea.className = "textarea textarea-bordered w-full";
+      textarea.style.cursor = "pointer";
+      
+      let md = "# Итоговый список ценностей\n\n";
+      md += "## Важные ценности\n\n";
+      state.positive.selected5.forEach(val => {
+        const exp = state.positive.elaborations[val];
+        if(exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim()){
+          md += `### ${val}\n`;
+          md += `- **Почему важно:** ${exp.why.trim()}\n`;
+          md += `- **Интерпретация:** ${exp.interpretation.trim()}\n`;
+          md += `- **Пример из жизни:** ${exp.example.trim()}\n\n`;
+        }
+      });
+      md += "## Негативные ценности\n\n";
+      state.negative.selected5.forEach(val => {
+        const exp = state.negative.elaborations[val];
+        if(exp && exp.why.trim() && exp.interpretation.trim() && exp.example.trim()){
+          md += `### ${val}\n`;
+          md += `- **Почему важно:** ${exp.why.trim()}\n`;
+          md += `- **Интерпретация:** ${exp.interpretation.trim()}\n`;
+          md += `- **Пример из жизни:** ${exp.example.trim()}\n\n`;
+        }
+      });
+      textarea.value = md;
+      textarea.addEventListener("click", function() {
+        textarea.select();
+        document.execCommand("copy");
+        alert("Скопировано в буфер обмена!");
+      });
+      wrapper.appendChild(textarea);
+      container.appendChild(wrapper);
+    }
+
+    /******************************************************************
+     * Обработчики переключения табов
+     ******************************************************************/
+    document.querySelectorAll('[role="tab"]').forEach(tab => {
+      tab.addEventListener("click", function(e) {
+        const tabNum = parseInt(e.target.getAttribute("data-tab"));
+        state.currentTab = tabNum;
+        saveState();
+        renderTab();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+    /******************************************************************
+     * Кнопка сброса
+     ******************************************************************/
+    document.getElementById("resetBtn").addEventListener("click", function() {
+      if(confirm("Вы уверены, что хотите сбросить все данные?")) {
+        state = {
+          currentTab: 1,
+          positive: { selected15: [], selected5: [], elaborations: {} },
+          negative: { selected15: [], selected5: [], elaborations: {} }
+        };
+        saveState();
+        renderTab();
+      }
+    });
+
+    /******************************************************************
+     * Переключатель темы: light/dark/system (по умолчанию системная).
+     ******************************************************************/
+    const themeSelect = document.getElementById("themeSelect");
+    let savedTheme = localStorage.getItem("theme") || "system";
+    themeSelect.value = savedTheme;
+    function applyTheme() {
+      const selected = localStorage.getItem("theme") || "system";
+      if(selected === "system") {
+        if(window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        } else {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } else {
+        document.documentElement.setAttribute("data-theme", selected);
+      }
+    }
+    applyTheme();
+    themeSelect.addEventListener("change", function(e) {
+      const newTheme = e.target.value;
+      localStorage.setItem("theme", newTheme);
+      applyTheme();
+    });
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+      if((localStorage.getItem("theme") || "system") === "system") {
+        applyTheme();
+      }
+    });
+
+    // Первая отрисовка
+    renderTab();
+  </script>
+</body>
+</html>
+
